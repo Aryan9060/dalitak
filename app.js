@@ -53,6 +53,28 @@ function saveAll(){
   lsSet('dk-peak',     S.peak);
 }
 
+/* ── Theme ──────────────────────────────────────────── */
+function setTheme(theme){
+  const isDark = theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  const toggle = document.getElementById('theme-toggle');
+  if (toggle){
+    const label = `Switch to ${isDark ? 'light' : 'dark'} mode`;
+    toggle.setAttribute('aria-label', label);
+    toggle.setAttribute('title', label);
+    toggle.setAttribute('aria-pressed', String(isDark));
+  }
+  lsSet('dk-theme', theme);
+}
+
+function initTheme(){
+  const savedTheme = lsGet('dk-theme');
+  setTheme(savedTheme === 'dark' ? 'dark' : 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+}
+
 /* ── Audio ──────────────────────────────────────────── */
 let _ac = null;
 function getAC(){ return _ac || (_ac = new (window.AudioContext || window.webkitAudioContext)()); }
@@ -176,6 +198,18 @@ function renderCal(){
     if (dstr === S.selDate)          btn.classList.add('selected');
     if ((S.tasks[dstr]||[]).length)  btn.classList.add('has-tasks');
     btn.addEventListener('click', () => selectDate(dstr));
+    btn.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      btn.classList.add('drag-over');
+    });
+    btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+    btn.addEventListener('drop', e => {
+      e.preventDefault();
+      btn.classList.remove('drag-over');
+      const [sourceDate, taskId] = e.dataTransfer.getData('text/plain').split('|');
+      moveTask(sourceDate, taskId, dstr);
+    });
     grid.appendChild(btn);
   }
 }
@@ -226,6 +260,14 @@ function renderTasks(){
   tasks.forEach(t => {
     const li = document.createElement('li');
     li.className = `task-item${t.done ? ' done' : ''}`;
+    li.dataset.taskId = t.id;
+    li.draggable = true;
+    li.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', `${dstr}|${t.id}`);
+      e.dataTransfer.effectAllowed = 'move';
+      li.classList.add('dragging');
+    });
+    li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
     // Circle checkbox
     const cb = document.createElement('input');
@@ -297,6 +339,47 @@ function delTask(dstr, id){
   S.tasks[dstr] = (S.tasks[dstr] || []).filter(t => t.id !== id);
   if (!S.tasks[dstr].length) delete S.tasks[dstr];
   saveAll(); renderCal(); renderTasks();
+}
+
+function moveTask(sourceDate, taskId, targetDate){
+  if (!sourceDate || !taskId || !targetDate || sourceDate === targetDate) return;
+  const sourceTasks = S.tasks[sourceDate] || [];
+  const taskIndex = sourceTasks.findIndex(task => task.id === taskId);
+  if (taskIndex < 0) return;
+
+  const [task] = sourceTasks.splice(taskIndex, 1);
+  if (!sourceTasks.length) delete S.tasks[sourceDate];
+  (S.tasks[targetDate] = S.tasks[targetDate] || []).push(task);
+
+  saveAll();
+  S.selDate = targetDate;
+  renderCal();
+  renderTasks();
+
+  const [year, month, day] = targetDate.split('-').map(Number);
+  const label = new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+    weekday:'short', day:'numeric', month:'short',
+  });
+  showToast(`✓ Task moved to ${label}`);
+}
+
+function reorderTask(dstr, taskId, targetTaskId, placeAfter){
+  if (taskId === targetTaskId) return;
+  const tasks = S.tasks[dstr] || [];
+  const sourceIndex = tasks.findIndex(task => task.id === taskId);
+  if (sourceIndex < 0) return;
+
+  const [task] = tasks.splice(sourceIndex, 1);
+  const targetIndex = targetTaskId
+    ? tasks.findIndex(item => item.id === targetTaskId)
+    : tasks.length;
+  const insertAt = targetIndex < 0
+    ? tasks.length
+    : targetIndex + (placeAfter ? 1 : 0);
+  tasks.splice(insertAt, 0, task);
+
+  saveAll();
+  renderTasks();
 }
 
 /* ── Streaks ────────────────────────────────────────── */
@@ -704,6 +787,39 @@ function initCopyMenu(){
 
 /* ── Wire events ────────────────────────────────────── */
 function wireEvents(){
+  const taskList = document.getElementById('task-list');
+  taskList.addEventListener('dragover', e => {
+    const target = e.target.closest('.task-item');
+    if (!target && e.target !== taskList) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    taskList.querySelectorAll('.drop-target, .drop-before, .drop-after').forEach(item => {
+      item.classList.remove('drop-target', 'drop-before', 'drop-after');
+    });
+    if (target){
+      const placeAfter = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      target.classList.add('drop-target', placeAfter ? 'drop-after' : 'drop-before');
+    }
+  });
+  taskList.addEventListener('dragleave', e => {
+    const target = e.target.closest('.task-item');
+    if (target && !target.contains(e.relatedTarget)) target.classList.remove('drop-target');
+  });
+  taskList.addEventListener('drop', e => {
+    const target = e.target.closest('.task-item');
+    if (!target && e.target !== taskList) return;
+    e.preventDefault();
+    const [sourceDate, taskId] = e.dataTransfer.getData('text/plain').split('|');
+    if (sourceDate === S.selDate && taskId){
+      const targetTaskId = target?.dataset.taskId || null;
+      const placeAfter = !!target && e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      reorderTask(sourceDate, taskId, targetTaskId, placeAfter);
+    }
+    taskList.querySelectorAll('.drop-target, .drop-before, .drop-after').forEach(item => {
+      item.classList.remove('drop-target', 'drop-before', 'drop-after');
+    });
+  });
+
   document.getElementById('prev-month').addEventListener('click', () => {
     if (--S.viewM < 0){ S.viewM = 11; S.viewY--; } renderCal();
   });
@@ -787,6 +903,7 @@ function wireEvents(){
 
 /* ── Init ───────────────────────────────────────────── */
 function init(){
+  initTheme();
   askNotif();
   renderHero();
   initNav();

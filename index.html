@@ -14,11 +14,7 @@
   <!-- ═══════════════════════ NAV ═══════════════════════ -->
   <nav class="nav">
     <div class="nav-brand">
-      <svg class="nav-logo" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <path d="M14 4C10 4 7 7 7 11c0 2.5 1.2 4.7 3 6.1V22h8v-4.9c1.8-1.4 3-3.6 3-6.1 0-4-3-7-7-7z" fill="#245C43"/>
-        <path d="M14 4c2 0 5 1.5 6 4" stroke="#245C43" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M10 8c-1 2-1 5 1 7" stroke="#3d7a5e" stroke-width="1" stroke-linecap="round"/>
-      </svg>
+      <img class="nav-logo" src="logo.png" alt="" aria-hidden="true" />
       <span class="nav-brand-name">dali tasks</span>
     </div>
 
@@ -35,6 +31,15 @@
           <path d="M8.5 16.5a1.5 1.5 0 0 0 3 0"/>
         </svg>
         <span class="nav-notif-dot"></span>
+      </button>
+      <button class="nav-icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+        <svg data-theme-icon="dark" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17.2 12.2A7.5 7.5 0 0 1 7.8 2.8 7.5 7.5 0 1 0 17.2 12.2z"/>
+        </svg>
+        <svg data-theme-icon="light" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10" cy="10" r="3.5"/>
+          <path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2m14.5-6-1.4 1.4M5.4 14.6 4 16m12 0-1.4-1.4M5.4 5.4 4 4"/>
+        </svg>
       </button>
       <button class="nav-avatar" aria-label="Profile">A</button>
     </div>
@@ -193,6 +198,7 @@
           <span>TH</span><span>FR</span><span>SA</span><span>SU</span>
         </div>
         <div id="calendar-grid" class="cal-grid"></div>
+        <p class="cal-drag-hint">Drag a task onto a date to move it.</p>
       </div>
 
       <!-- Task panel -->
