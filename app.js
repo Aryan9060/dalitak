@@ -280,6 +280,7 @@ function renderTasks(){
 
     const name = document.createElement('div');
     name.className = 'task-name'; name.textContent = t.text;
+    name.title = t.text;
 
     const meta = document.createElement('div');
     meta.className = 'task-meta';
@@ -513,6 +514,7 @@ function renderMiles(){
         ` : ''}
         <button class="ms-btn" data-id="${ms.id}" data-act="del">Delete</button>
       </div>`;
+    card.querySelector('.ms-name').title = ms.title;
     list.appendChild(card);
   });
   list.querySelectorAll('[data-act]').forEach(btn => {
